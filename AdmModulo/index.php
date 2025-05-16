@@ -4,48 +4,70 @@ require_once '../configLogin/session_manager.php';
 require_once '../configLogin/menu_dinamico.php';
 
 SessionManager::startSession();
-$usuarioLogueado = SessionManager::getCurrentUser();
+
+// Verificar permisos con actualización en tiempo real
+if (!SessionManager::isLoggedIn()) {
+    header('Location: ../index.php?error=Debes iniciar sesión');
+    exit();
+}
+
+// Recargar módulos si es necesario (para asegurar permisos actualizados)
+SessionManager::reloadUserModules();
+
+// Verificar permiso para AdmModulo
+if (!SessionManager::hasPermission('AdmModulo')) {
+    header('HTTP/1.0 403 Forbidden');
+    exit('No tienes permiso para acceder a esta página');
+}
 
 $controller = new ModuloController();
+$perfiles = $controller->obtenerTodosPerfiles();
 
-// Obtener todos los perfiles
-$perfiles = [
-    ['Id_p' => 1001, 'Nombre' => 'Administrador'],
-    ['Id_p' => 1002, 'Nombre' => 'Profesor'],
-    ['Id_p' => 1003, 'Nombre' => 'Estudiante']
-];
-
-// Perfil seleccionado (por defecto el primero)
-$idPerfilSeleccionado = $_POST['perfil'] ?? $perfiles[0]['Id_p'];
+// Validar y obtener perfil seleccionado
+$idPerfilSeleccionado = isset($_POST['perfil']) ? (int)$_POST['perfil'] : ($perfiles[0]['Id_p'] ?? null);
 
 // Procesar formulario de actualización
 $mensaje = '';
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modulos'])) {
-    $modulosSeleccionados = is_array($_POST['modulos']) ? $_POST['modulos'] : [];
+    $modulosSeleccionados = array_map('intval', $_POST['modulos'] ?? []);
     
     if ($controller->actualizarModulos($idPerfilSeleccionado, $modulosSeleccionados)) {
         $mensaje = "¡Configuración guardada correctamente!";
+        
+        // Si el perfil modificado es el del usuario actual, actualizar sus módulos en sesión
+        if (SessionManager::getCurrentProfileId() == $idPerfilSeleccionado) {
+            $_SESSION['user']['modules'] = $controller->obtenerModulosPorPerfil($idPerfilSeleccionado);
+        }
     } else {
         $error = "Error al guardar la configuración. Intente nuevamente.";
     }
 }
 
-// Obtener todos los módulos
+// Obtener datos para la vista
 $todosModulos = $controller->obtenerTodosModulos();
-
-// Obtener los módulos asignados al perfil seleccionado
 $modulosAsignados = $controller->obtenerModulosPorPerfil($idPerfilSeleccionado);
 $idsModulosAsignados = array_column($modulosAsignados, 'Id_mod');
+
+// Función auxiliar para obtener el nombre del perfil seleccionado
+function obtenerNombrePerfil($perfiles, $idPerfil) {
+    foreach ($perfiles as $perfil) {
+        if ($perfil['Id_p'] == $idPerfil) {
+            return htmlspecialchars($perfil['Nombre']);
+        }
+    }
+    return '';
+}
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administrar Módulos por Perfil</title>
 </head>
 <body>
-
     <h1>Asignación de Módulos por Perfil</h1>
 
     <!-- Menú de navegación dinámico -->
@@ -53,11 +75,11 @@ $idsModulosAsignados = array_column($modulosAsignados, 'Id_mod');
 
     <!-- Mensajes de feedback -->
     <?php if ($mensaje): ?>
-        <p class="mensaje-exito"><?= $mensaje ?></p>
+        <p><?= $mensaje ?></p>
     <?php endif; ?>
     
     <?php if ($error): ?>
-        <p class="mensaje-error"><?= $error ?></p>
+        <p><?= $error ?></p>
     <?php endif; ?>
 
     <!-- Selección de perfil -->
@@ -75,7 +97,7 @@ $idsModulosAsignados = array_column($modulosAsignados, 'Id_mod');
     <!-- Formulario de asignación de módulos -->
     <form method="post" action="index.php">
         <input type="hidden" name="perfil" value="<?= $idPerfilSeleccionado ?>">
-        <table>
+        <table border="1">
             <tr>
                 <th>Perfil</th>
                 <th>Módulo</th>
@@ -83,7 +105,7 @@ $idsModulosAsignados = array_column($modulosAsignados, 'Id_mod');
             </tr>
             <?php foreach ($todosModulos as $modulo): ?>
                 <tr>
-                    <td><?= htmlspecialchars($perfiles[array_search($idPerfilSeleccionado, array_column($perfiles, 'Id_p'))]['Nombre']) ?></td>
+                    <td><?= obtenerNombrePerfil($perfiles, $idPerfilSeleccionado) ?></td>
                     <td><?= htmlspecialchars($modulo['Nombre']) ?></td>
                     <td align="center">
                         <input type="checkbox" name="modulos[]" value="<?= $modulo['Id_mod'] ?>" 
