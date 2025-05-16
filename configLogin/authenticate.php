@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../connection.php';
+require_once __DIR__ . '/../configLogin/session_manager.php';
 
 // Verificar método POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -7,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-// Obtener datos del formulario
+// Obtener y sanitizar datos del formulario
 $username = trim($_POST['user'] ?? '');
 $password = $_POST['pwd'] ?? '';
 
@@ -20,8 +21,12 @@ if (empty($username) || empty($password)) {
 try {
     $pdo = DatabaseConnection::getInstance()->getConnection();
     
-    // Buscar usuario en la base de datos
-    $stmt = $pdo->prepare("SELECT * FROM usuario WHERE Nick = ? LIMIT 1");
+    // Consulta optimizada usando la vista
+    $stmt = $pdo->prepare("
+        SELECT * FROM vista_usuario_completo 
+        WHERE nick = ? AND estado = 'Activo'
+        LIMIT 1
+    ");
     $stmt->execute([$username]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -30,29 +35,45 @@ try {
         exit();
     }
     
-    // Verificar contraseña
-    if (strpos($user['Pwd'], '$2y$10$') === 0) {
-        // Contraseña hasheada
-        if (!password_verify($password, $user['Pwd'])) {
-            header('Location: ../index.php?error=Usuario o contraseña incorrectos');
-            exit();
-        }
-    } else {
-        // Contraseña en texto plano (no seguro)
-        if ($password !== $user['Pwd']) {
-            header('Location: ../index.php?error=Usuario o contraseña incorrectos');
-            exit();
-        }
+    // Verificación simple de contraseña (sin hashing)
+    if ($password !== $user['Pwd']) {
+        header('Location: ../index.php?error=Usuario o contraseña incorrectos');
+        exit();
     }
     
-    // Iniciar sesión
-    session_start();
-    $_SESSION['user_id'] = $user['Id_u'];
-    $_SESSION['username'] = $user['Nick'];
-    $_SESSION['nombre'] = $user['Nombre'];  // DEBO RECORDAR QUE ESTO YA ESTA EN LA TABLA [PERSONA]
+    // Mapear nombres de perfil a IDs (puedes hacer esto en una tabla si prefieres)
+    $perfilesIds = [
+        'administrador' => 1002,
+        'profesor' => 1003,
+        'estudiante' => 1001
+    ];
     
-    // Redirigir al panel de administración
-    header('Location: ../AdmUsuario/index.php');
+    // Preparar datos para la sesión
+    $userData = [
+        'Id_u' => $user['id_u'],
+        'Nombre' => $user['persona_nombre'],
+        'Username' => $user['nick'],
+        'PerfilNombre' => $user['perfil_nombre'],
+        'Id_p' => $perfilesIds[strtolower($user['perfil_nombre'])] ?? 1001,
+        'Edad' => $user['edad']
+    ];
+    
+    // Iniciar sesión
+    SessionManager::loginUser($userData);
+    
+    // Redirigir según perfil
+    switch (strtolower($user['perfil_nombre'])) {
+        case 'administrador':
+            header('Location: ../AdmUsuario/index.php');
+            break;
+        case 'profesor':
+            header('Location: ../profesor/dashboard.php');
+            break;
+        case 'estudiante':
+        default:
+            header('Location: ../estudiante/inicio.php');
+            break;
+    }
     exit();
     
 } catch (PDOException $e) {
