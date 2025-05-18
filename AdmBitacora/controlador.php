@@ -1,5 +1,4 @@
 <?php
-// filepath: c:\xampp\htdocs\PROGWEB\AdmBitacora\controlador.php
 require_once 'modelo.php';
 
 class BitacoraController {
@@ -10,8 +9,12 @@ class BitacoraController {
     }
 
     // Obtener registros para la vista
-public function obtenerRegistros($nombre = null) {
+    public function obtenerRegistros($nombre = null) {
         return $this->model->obtenerRegistros($nombre);
+    }
+
+    public function registrarAccion($idUsuario, $accion) {
+        return $this->model->registrarAccion($idUsuario, $accion);
     }
 }
 ?>
