@@ -50,7 +50,8 @@ try {
     
     // Preparar datos para la sesión
     $userData = [
-        'Id_u' => $user['id_u'],
+        'user_id' => $user['id_u'], // Para la vista [BITACORA].
+        'Id_u' => $user['id_u'],    // Para la vista [USUARIO].
         'Nombre' => $user['persona_nombre'],
         'Username' => $user['nick'],
         'PerfilNombre' => $user['perfil_nombre'],
