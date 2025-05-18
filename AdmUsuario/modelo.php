@@ -15,23 +15,41 @@ class UsuarioModel {
     }
 
     public function registrarAccionBitacora($accion) {
-        session_start(); // Asegúrate de iniciar la sesión si no está iniciada
-        $usuarioId = $_SESSION['user_id'] ?? null; // Obtén el ID del usuario de la sesión
+        try {
+            // 1. Obtener usuario actual
+            $currentUser = SessionManager::getCurrentUser();
+            if (!$currentUser) 
+                throw new Exception("No hay usuario autenticado");
+    
+            // 2. Obtener ID de usuario (compatible con varias estructuras de sesión)
+            $usuarioId = $currentUser['id'] ?? $currentUser['Id_u'] ?? null;
+            if (!$usuarioId) 
+                throw new Exception("ID de usuario no disponible en sesión");
+            
+            // 3. Verificar que el usuario existe
+            $stmt = $this->pdo->prepare("SELECT 1 FROM usuario WHERE Id_u = ?");
+            $stmt->execute([$usuarioId]);
 
-        if (!$usuarioId) {
-            throw new Exception("No se encontró el ID del usuario en la sesión.");
+            if (!$stmt->fetch()) 
+                throw new Exception("Usuario con ID $usuarioId no existe");
+            
+    
+            // 4. Preparar e insertar registro
+            $accion = substr($accion, 0, 50); 
+            $sql = "INSERT INTO bitacora (fecha, hora, accion, id_u) 
+                    VALUES (CURDATE(), CURTIME(), ?, ?)";
+            
+            $stmt = $this->pdo->prepare($sql);
+            if (!$stmt->execute([$accion, $usuarioId])) {
+                $error = $stmt->errorInfo();
+                throw new Exception("Error SQL: " . $error[2]);
+            }
+    
+            return true;
+        } catch (Exception $e) {
+            error_log("Error en bitácora: " . $e->getMessage());
+            return false;
         }
-
-        $nuevoId = $this->obtenerUltimoIdBitacora() + 1;
-
-        $sql = "INSERT INTO bitacora (id_b, accion, id_u, fecha, hora) VALUES (:id_b, :accion, :id_u, CURDATE(), CURTIME())";
-        $stmt = $this->pdo->prepare($sql);
-
-        return $stmt->execute([
-            ':id_b' => $nuevoId,
-            ':accion' => $accion,
-            ':id_u' => $usuarioId
-        ]);
     }
 
     public function obtenerUsuarios() {
