@@ -1,79 +1,78 @@
 <?php
 require_once __DIR__ . '/controlador/controlador.php';
 
-// Obtener el ID de usuario
-$idUsuario = 1; // Puedes cambiarlo por $_GET['id'] si lo necesitas
+$controlador = new Controlador();
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdmPerfil - Generador de PDF</title>
+    <title>AdmPerfil - Reportes</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
             max-width: 800px;
             margin: 0 auto;
-            background: white;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         h1 {
             color: #333;
             text-align: center;
         }
-        .btn-container {
+        .panel {
+            background: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .btn-group {
             display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 30px;
+            gap: 10px;
+            margin-top: 15px;
         }
         .btn {
             display: inline-block;
-            width: 200px;
-            padding: 10px;
+            padding: 10px 15px;
+            background: #4CAF50;
             color: white;
-            text-align: center;
             text-decoration: none;
-            border: none;
             border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .btn-download {
-            background-color: #4CAF50;
-        }
-        .btn-download:hover {
-            background-color: #45a049;
+            text-align: center;
+            flex: 1;
         }
         .btn-preview {
-            background-color: #2196F3;
+            background: #2196F3;
         }
-        .btn-preview:hover {
-            background-color: #0b7dda;
+        .btn-report {
+            background: #FF9800;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>AdmPerfil</h1>
-        <p>Bienvenido al generador de mensajes personalizados en PDF</p>
-        
-        <div class="btn-container">
-            <!-- Botón para descargar PDF -->
-            <a href="generar_pdf.php?id=<?php echo $idUsuario; ?>&action=download" class="btn btn-download">Graficar (Descargar)</a>
-            
-            <!-- Botón para vista previa -->
-            <a href="generar_pdf.php?id=<?php echo $idUsuario; ?>&action=preview" target="_blank" class="btn btn-preview">Vista Previa</a>
-        </div>
+    <h1>Sistema de Reportes</h1>
+    
+    <div class="panel">
+        <h2>Reporte de Usuario</h2>
+        <form action="generar_reporte.php" method="get">
+            <input type="hidden" name="tipo" value="usuario">
+            <label>ID Usuario: <input type="number" name="id" min="1" required></label>
+            <div class="btn-group">
+                <button type="submit" name="action" value="preview" class="btn btn-preview">Vista Previa</button>
+                <button type="submit" name="action" value="download" class="btn">Descargar PDF</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="panel">
+        <h2>Reporte General de Perfiles</h2>
+        <form action="generar_reporte.php" method="get">
+            <input type="hidden" name="tipo" value="perfiles">
+            <div class="btn-group">
+                <button type="submit" name="action" value="preview" class="btn btn-preview">Vista Previa</button>
+                <button type="submit" name="action" value="download" class="btn">Descargar PDF</button>
+            </div>
+        </form>
     </div>
 </body>
 </html>
